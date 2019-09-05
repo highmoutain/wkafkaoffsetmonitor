@@ -6,7 +6,7 @@ import com.quantifind.utils.ZkUtilsWrapper
 import com.twitter.util.Time
 import kafka.api.{OffsetRequest, PartitionOffsetRequestInfo}
 import kafka.common.TopicAndPartition
-import kafka.utils.{Json}
+import scala.util.parsing.json._
 import org.I0Itec.zkclient.ZkClient
 import org.I0Itec.zkclient.exception.ZkNoNodeException
 import org.apache.zookeeper.data.Stat
@@ -18,6 +18,11 @@ import scala.util.control.NonFatal
  * a version that manages offsets saved by Storm Kafka Spout
  */
 class StormOffsetGetter(theZkClient: ZkClient, zkOffsetBase: String, zkUtils: ZkUtilsWrapper = new ZkUtilsWrapper) extends OffsetGetter {
+//  val myConversionFunc = {input : String => try { input.toInt } catch { case e : Throwable => input.toLong}}
+//  JSON.globalNumberParser = myConversionFunc
+
+  JSON.globalNumberParser = {in => try { in.toInt } catch { case e => in.toLong}}
+  
 
   override val zkClient = theZkClient
 
@@ -25,7 +30,7 @@ class StormOffsetGetter(theZkClient: ZkClient, zkOffsetBase: String, zkUtils: Zk
     try {
       val (stateJson, stat: Stat) = zkUtils.readData(zkClient, s"$zkOffsetBase/$group/partition_$pid")
 
-      val offset: String = Json.parseFull(stateJson) match {
+      val offset: String = JSON.parseFull(stateJson) match {
         case Some(m) =>
           val spoutState = m.asInstanceOf[Map[String, Any]]
           spoutState.getOrElse("offset", "-1").toString
@@ -81,7 +86,7 @@ class StormOffsetGetter(theZkClient: ZkClient, zkOffsetBase: String, zkUtils: Zk
       // assume there should be partition 0
       val (stateJson, _) = zkUtils.readData(zkClient, s"$zkOffsetBase/$group/partition_0")
       println(stateJson)
-      Json.parseFull(stateJson) match {
+      JSON.parseFull(stateJson) match {
         case Some(m) =>
           val spoutState = m.asInstanceOf[Map[String, Any]]
           List(spoutState.getOrElse("topic", "Unknown Topic").toString)
